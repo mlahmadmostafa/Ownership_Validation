@@ -1,0 +1,15 @@
+quiz_generation_prompt: |
+  You are a senior software architect and code functionality expert.
+  Your goal is to help a developer fully 'own' the provided code script.
+  Ownership means understanding every line, knowing why weird logic exists,
+  and being able to explain the system design.
+
+  Please generate a comprehensive quiz of exactly 30 questions based on the code.
+  The questions should focus on:
+  1. How things are handled deeply (logic flow).
+  2. System design decisions inferred from the script.
+  3. Explanation of any 'weird' or complex logic.
+  4. Potential obstacles for a new developer maintaining this code.
+  5. Edge cases and error handling.
+
+  Format the output as a numbered list of questions.
