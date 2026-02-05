@@ -2,31 +2,38 @@
 Ownership Validator
 -------------------
 If you can't explain the system, then you don't own it.
-This script generates a 30-question quiz from a given code file to help developers understand and "own" the code.
-It uses Llama Index with Ollama for both LLM and Embeddings.
+This script generates a 30-question quiz from a given code file or repository to help developers understand and "own" the code.
+It uses Llama Index with a ReAct Agent to explore the codebase.
 """
 
 import argparse
 import sys
 import os
 import yaml
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
-from llama_index.llms.openai import OpenAI
-# from llama_index.embeddings.ollama import OllamaEmbedding # Removed for BM25
-from llama_index.retrievers.bm25 import BM25Retriever
-from llama_index.core.query_engine import RetrieverQueryEngine
-from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core import Settings
-from llama_index.core.schema import Document
+from llama_index.llms.openai import OpenAI
+from llama_index.core.tools import FunctionTool
+from llama_index.core.agent import ReActAgent
+
+# Attempt direct import, fallback to src.tools if needed
+try:
+    import tools
+except ImportError:
+    # If running from root, src.tools might be needed, or ensure src is in path
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+    try:
+        import tools
+    except ImportError:
+         print("Warning: Could not import 'tools' module. Agent tools will be missing.")
+         tools = None
 
 # Default Constants
 DEFAULT_LLM_MODEL = "z-ai/glm-4.7-flash:free"
-DEFAULT_EMBEDDING_MODEL = "ollama/embeddinggemma:300m-qat-q4_0"
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 
-def setup_llama_index(llm_model: str, embedding_model: str, api_key: str = None, base_url: str = None):
-    """Configures Llama Index with a Generic OpenAI-compatible LLM and Ollama Embeddings."""
-    print(f"Setting up Llama Index with LLM='{llm_model}' and Embeddings='{embedding_model}'...")
+def setup_llama_index(llm_model: str, api_key: str = None, base_url: str = None):
+    """Configures Llama Index with a Generic OpenAI-compatible LLM."""
+    print(f"Setting up Llama Index with LLM='{llm_model}'...")
     
     # Setup LLM (Generic / OpenRouter)
     if not api_key:
@@ -45,7 +52,6 @@ def setup_llama_index(llm_model: str, embedding_model: str, api_key: str = None,
         request_timeout=360.0
     )
     
-    # Settings.embed_model = OllamaEmbedding(model_name=embedding_model)
     Settings.embed_model = None
 
 def load_prompts():
@@ -67,72 +73,68 @@ def load_prompts():
         print(f"Error reading prompt file: {e}")
         sys.exit(1)
 
-def generate_quiz(file_path: str, model_name: str, api_key: str):
-    """Reads the file and generates a quiz."""
-    if not os.path.exists(file_path):
-        print(f"Error: File '{file_path}' not found.")
+def generate_quiz(target_path: str, model_name: str, api_key: str):
+    """Investigates the target path (file or folder) and generates a quiz."""
+    if not os.path.exists(target_path):
+        print(f"Error: Path '{target_path}' not found.")
         sys.exit(1)
 
-    print(f"Reading file: {file_path}")
-    
-    # Read file content
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-    except Exception as e:
-        print(f"Error reading file: {e}")
-        sys.exit(1)
+    print(f"Investigating target: {target_path}")
 
-    # Create Document
-    document = Document(text=content, metadata={"filename": os.path.basename(file_path)})
-
-    # Code Splitting for BM25
-    ids = [os.path.basename(file_path)]
-    documents = [document]
-
-    # Initialize generic LLM if API key is provided directly (e.g. from server)
+    # Initialize generic LLM
     if api_key:
-        setup_llama_index(model_name or DEFAULT_LLM_MODEL, "", api_key=api_key)
+        setup_llama_index(model_name or DEFAULT_LLM_MODEL, api_key=api_key)
 
-    # Split nodes
-    splitter = SentenceSplitter(chunk_size=1024, chunk_overlap=20)
-    nodes = splitter.get_nodes_from_documents(documents)
+    # Setup Tools
+    tool_list = []
+    if tools:
+        if hasattr(tools, 'bread_crumb'):
+            tool_list.append(FunctionTool.from_defaults(fn=tools.bread_crumb))
+        if hasattr(tools, 'get_file_content'):
+            tool_list.append(FunctionTool.from_defaults(fn=tools.get_file_content))
+    else:
+        print("No tools available for the agent.")
 
-    # Create BM25 Retriever
-    print("Indexing content with BM25...")
-    retriever = BM25Retriever.from_defaults(nodes=nodes, similarity_top_k=10)
-    
-    # Create Query Engine
-    query_engine = RetrieverQueryEngine.from_args(retriever, llm=Settings.llm)
+    # Initialize Agent
+    agent = ReActAgent.from_tools(tool_list, llm=Settings.llm, verbose=True)
     
     # Load Prompts
     prompts = load_prompts()
-    prompt = prompts.get("quiz_generation_prompt")
+    base_prompt = prompts.get("quiz_generation_prompt")
     
-    if not prompt:
+    if not base_prompt:
         print("Error: 'quiz_generation_prompt' not found in prompt file.")
         sys.exit(1)
     
-    print("Generating quiz (this may take a minute)...")
-    response = query_engine.query(prompt)
+    # Create Agent Prompt
+    prompt = (
+        f"You are analyzing the codebase located at: {target_path}\n"
+        f"{base_prompt}\n"
+        "Use the provided tools to explore the directory structure and read files as needed "
+        "to understand the system design and logic. "
+        "If the target is a file, read it directly. If it is a folder, explore it."
+    )
+    
+    print("Agent is querying the codebase (this may take time)...")
+    response = agent.chat(prompt)
     
     print("\n" + "="*40)
-    print(f"OWNERSHIP QUIZ FOR: {os.path.basename(file_path)}")
+    print(f"OWNERSHIP QUIZ FOR: {os.path.basename(target_path)}")
     print("="*40 + "\n")
     print(str(response))
     print("\n" + "="*40)
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate an ownership quiz for a code script.")
-    parser.add_argument("file", help="Path to the code script file.")
+    parser = argparse.ArgumentParser(description="Generate an ownership quiz for a code script or repository.")
+    parser.add_argument("file", help="Path to the code script file or folder.")
     parser.add_argument("--model", default=DEFAULT_LLM_MODEL, help=f"LLM model to use (default: {DEFAULT_LLM_MODEL})")
-    parser.add_argument("--embedding", default=DEFAULT_EMBEDDING_MODEL, help=f"Ollama embedding model (default: {DEFAULT_EMBEDDING_MODEL})")
+    # parser.add_argument("--embedding", default=DEFAULT_EMBEDDING_MODEL, help=f"Ollama embedding model (default: {DEFAULT_EMBEDDING_MODEL})")
     parser.add_argument("--api-key", help="LLM API Key (overrides LLM_API_KEY env var)")
     parser.add_argument("--base-url", help=f"LLM Base URL (overrides LLM_BASE_URL env var, default: {DEFAULT_BASE_URL})")
     
     args = parser.parse_args()
     
-    setup_llama_index(args.model, args.embedding, args.api_key, args.base_url)
+    setup_llama_index(args.model, args.api_key, args.base_url)
     generate_quiz(args.file, args.model, args.api_key)
 
 if __name__ == "__main__":

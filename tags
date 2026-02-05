@@ -1,0 +1,28 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/mnt/d/projects/Ownership_validation/	//
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+DEFAULT_BASE_URL	src/ownership_validator.py	/^DEFAULT_BASE_URL = "https:\/\/openrouter.ai\/api\/v1"$/;"	v	line:23
+DEFAULT_LLM_MODEL	src/ownership_validator.py	/^DEFAULT_LLM_MODEL = "z-ai\/glm-4.7-flash:free"$/;"	v	line:22
+Installation	README.md	/^## Installation$/;"	s	line:13	chapter:Ownership Validator
+Optional Arguments	README.md	/^### Optional Arguments$/;"	S	line:49	section:Ownership Validator""Usage
+Ownership Validator	README.md	/^# Ownership Validator$/;"	c	line:1
+Prerequisites	README.md	/^## Prerequisites$/;"	s	line:5	chapter:Ownership Validator
+ServerRequest	backend/models.py	/^class ServerRequest(BaseModel):$/;"	c	line:3
+Usage	README.md	/^## Usage$/;"	s	line:41	chapter:Ownership Validator
+What it does	README.md	/^## What it does$/;"	s	line:61	chapter:Ownership Validator
+app	backend/server.py	/^app = FastAPI()$/;"	v	line:4
+bread_crumb	src/tools.py	/^def bread_crumb():$/;"	f	line:4
+generate_quiz	src/ownership_validator.py	/^def generate_quiz(file_path: str, model_name: str, api_key: str):$/;"	f	line:66
+get_file_content	src/tools.py	/^def get_file_content():$/;"	f	line:9
+load_prompts	src/ownership_validator.py	/^def load_prompts():$/;"	f	line:47
+main	src/ownership_validator.py	/^def main():$/;"	f	line:121
+read_root	backend/server.py	/^def read_root(request: ServerRequest):$/;"	f	line:7
+setup_llama_index	src/ownership_validator.py	/^def setup_llama_index(llm_model: str, api_key: str = None, base_url: str = None):$/;"	f	line:25
